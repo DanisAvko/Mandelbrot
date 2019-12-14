@@ -162,7 +162,7 @@ class Window : JFrame(),  ActionListener{
         // добавляем вложенное меню
         menuFractal.add(subColor)
 
-        var iterFractal = JMenuItem("Динамические итерации")
+        var iterFractal = JCheckBoxMenuItem("Динамические итерации")
         iterFractal.addActionListener(this)
         menuFractal.add(iterFractal)
 
