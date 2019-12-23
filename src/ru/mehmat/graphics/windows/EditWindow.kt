@@ -1,5 +1,6 @@
 package ru.mehmat.graphics.windows
 
+import com.sun.tools.javac.Main
 import jcodecc.javase.src.main.java.org.jcodec.api.awt.AWTSequenceEncoder
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -20,7 +21,9 @@ import kotlin.collections.ArrayList
 import java.awt.AWTEventMulticaster.getListeners
 import java.awt.Color
 import java.awt.Rectangle
+import java.io.File
 import java.lang.Exception
+import javax.swing.filechooser.FileNameExtensionFilter
 import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.cos
@@ -28,7 +31,7 @@ import kotlin.math.log10
 import kotlin.math.sin
 
 
-class EditWindow() : JFrame() {
+class EditWindow(val cs: (Float) -> Color, val deg: Int) : JFrame() {
 
     private val editmainPanel: MainPanel
     private val editcontrolPanel: JPanel
@@ -39,13 +42,7 @@ class EditWindow() : JFrame() {
     private val frameListPanel: JScrollPane
     private var frameList: JList<ImageIcon>
 
-    private val cs: (Float) -> Color = {
-        Color.getHSBColor(
-            abs(cos(5 * it)),
-            (log10(abs(sin(10 * it)))),
-            abs(sin(10 * it)).toFloat()
-        )
-    }
+
     private val dim: Dimension
     private val editPainter: FractalPainter
 
@@ -61,7 +58,7 @@ class EditWindow() : JFrame() {
             -1.5,
             1.5
         )
-        val m = Mandelbrot(2)
+        val m = Mandelbrot(deg)
         editPainter = FractalPainter(plane, m)
         editPainter.proportion = true
         editmainPanel = MainPanel(editPainter)
@@ -86,7 +83,7 @@ class EditWindow() : JFrame() {
                 try {
                     images.remove(frameList.anchorSelectionIndex)
                     imgCoords.remove(frameList.anchorSelectionIndex)
-                }catch (e:Exception){
+                } catch (e: Exception) {
 
                 }
             }
@@ -95,16 +92,46 @@ class EditWindow() : JFrame() {
         btnStart.addActionListener {
             val time = durVideo.value.toString().toInt()
             val fps = 15
-            MakeVideo(time,fps,imgCoords,plane,m,cs).createVideo()
+            var s: String = ""
+            val d = JFileChooser()
+            val filefilter = FileNameExtensionFilter("MP4", "mp4")
+            d.isAcceptAllFileFilterUsed = false
+            d.currentDirectory = File(".")
+            d.fileFilter = filefilter
+            d.dialogTitle = "Сохранить файл"
+            d.approveButtonText = "Сохранить"
+            val res: Int = d.showSaveDialog(parent)
+            if (res == JFileChooser.APPROVE_OPTION) {
+                s = d.selectedFile.absolutePath ?: ""
+                if (!d.fileFilter.accept(d.selectedFile)) {
+                    s += "." + (filefilter.extensions?.get(0) ?: "")
+                }
+            }
+            val j = thread {
+                btnAdd.isEnabled = false
+                btnRemove.isEnabled = false
+                btnStart.isEnabled = false
+                MakeVideo(time, fps, imgCoords, plane.realWidth, plane.realHeight, m, cs, deg).createVideo(s)
+                btnAdd.isEnabled = true
+                btnRemove.isEnabled = true
+                btnStart.isEnabled = true
+            }
+
         }
 
 
         btnAdd.addActionListener {
             imgCoords.addElement(CartesianPlane(plane.xMin, plane.xMax, plane.yMin, plane.yMax))
-            editPainter.buf?.let {
-                val buf = BufferedImage((dim.width * 0.4).toInt(), 100, BufferedImage.TYPE_INT_RGB)
-                buf.graphics.drawImage(it, 0, 0, (dim.width * 0.4).toInt(), 100, null)
-                images.addElement(ImageIcon(buf))
+
+            val pl =
+                CartesianScreenPlane((dim.width * 0.4).toInt(), 100, plane.xMin, plane.xMax, plane.yMin, plane.yMax)
+            val p = FractalPainter(pl, m)
+            p.proportion = true
+            MainPanel(p).repaint()
+            p.setColorScheme(cs)
+            p.create()
+            p.buf?.let { l ->
+                images.addElement(ImageIcon(l))
             }
 
 

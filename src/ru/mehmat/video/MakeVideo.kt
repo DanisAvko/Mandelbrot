@@ -16,16 +16,16 @@ import java.awt.image.BufferedImage
 import javax.swing.DefaultListModel
 import kotlin.math.ln
 
-class MakeVideo(val time: Int,val fps: Int,val imgCoords: DefaultListModel<CartesianPlane>,val plane: CartesianScreenPlane,val m:Mandelbrot,val cs:(Float)->Color) {
+class MakeVideo(val time: Int,val fps: Int,val imgCoords: DefaultListModel<CartesianPlane>,val width: Int,val height:Int,val m:Mandelbrot,val cs:(Float)->Color,val deg:Int) {
 
     val timforone = time / (imgCoords.size - 1)
     val framecount = timforone * fps
     var out: SeekableByteChannel? = null
     val masBuf = ArrayList<ArrayList<BufferedImage>>()
-    fun createVideo() {
+    fun createVideo(path:String) {
         val square=9
         try {
-            out = NIOUtils.writableFileChannel("./outt.mp4")
+            out = NIOUtils.writableFileChannel(path)
             val encoder = AWTSequenceEncoder(out, Rational.R(fps, 1))
             runBlocking {
                 for (j in 1..(imgCoords.size - 1)) {
@@ -33,7 +33,7 @@ class MakeVideo(val time: Int,val fps: Int,val imgCoords: DefaultListModel<Carte
                     val jl =launch {
                         val k = j
                         val plane2 = CartesianScreenPlane(
-                            plane.realWidth, plane.realHeight, imgCoords[k - 1].xMin,
+                            width, height, imgCoords[k - 1].xMin,
                             imgCoords[k - 1].xMax, imgCoords[k - 1].yMin, imgCoords[k - 1].yMax
                         )
                         val dxmin = Math.abs(imgCoords[k].xMin - imgCoords[k - 1].xMin) / framecount
@@ -41,7 +41,7 @@ class MakeVideo(val time: Int,val fps: Int,val imgCoords: DefaultListModel<Carte
                         val dymin = Math.abs(imgCoords[k].yMin - imgCoords[k - 1].yMin) / framecount
                         val dymax = Math.abs(imgCoords[k - 1].yMax - imgCoords[k].yMax) / framecount
                         for (i in 0..(framecount - 1)) {
-                            val mm = Mandelbrot(2)
+                            val mm = Mandelbrot(deg)
                             val painter = FractalPainter(plane2, mm)
                             plane2.xMin += dxmin
                             plane2.xMax -= dxmax
@@ -49,7 +49,7 @@ class MakeVideo(val time: Int,val fps: Int,val imgCoords: DefaultListModel<Carte
                             plane2.yMax -= dymax
                             painter.proportion = true
                             painter.setColorScheme(cs)
-                            var coeffIncrease= (35/painter.fractal.minIter.toDouble())* ln(square/((painter.plane.xMax-painter.plane.xMin)
+                            val coeffIncrease= (35/painter.fractal.minIter.toDouble())* ln(square/((painter.plane.xMax-painter.plane.xMin)
                                     *(painter.plane.yMax-painter.plane.yMin)))
                             if (coeffIncrease-1>1e-10) painter.fractal.maxIter=(painter.fractal.minIter*coeffIncrease).toInt()
                             painter.create()
